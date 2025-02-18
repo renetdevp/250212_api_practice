@@ -23,14 +23,15 @@ router.post('/', async (req, res, next) => {
             //  make jwt_token use result.id, jwtSecret and expiredTime.
             const jwtSecret = process.env.jwtSecret || 'thisissecret';
             const jwtOption = {
-
+                algorithm: 'HS512',
+                expiresIn: '1h',
             };
             //  https://stackoverflow.com/a/56872864, jwt.sign()은 callback 함수가 제공되면 비동기로, 제공되지 않으면 동기식으로 작동함
             jwt.sign({ userId: result.userId }, jwtSecret, jwtOption, (err, token) => {
                 if (err){
                     return next({ msg: `Failed to sign JWT`});
                 }
-                
+
                 res.status(201).json({
                     msg: token
                 });
