@@ -11,7 +11,6 @@ async function createOne(post, user){
             ...post,
             author: user
         });
-
         return 0;
     }catch (e){
         return -1;

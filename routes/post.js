@@ -55,10 +55,22 @@ router.post('/', async (req, res, next) => {
     try {
         const { post } = req.body;
 
-        //future work: validate post value
+        if (!post || (typeof(post?.title) != 'string') || (typeof(post?.content) != 'string')){
+            return res.status(400).json({
+                msg: 'Invalid Post format'
+            });
+        }
+
         //future work: get user_info from jwt token and validate with jwt
-        const user = new require('mongoose').Types.ObjectId;
         
+        // const user = new (require('mongoose').Types.ObjectId);
+        const userAuth = req.headers.authorization;
+        if (!userAuth || typeof(userAuth) != 'string'){
+            return res.status(400).json({
+                msg: 'Invalid Authorization'
+            });
+        }
+        //  jwt.verify(userAuth)
         const result = await createOne(post, user);
 
         if (result != 0) throw new Error('error while create post');
