@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const jwt = require('jsonwebtoken');
 const { createOne, readOne, readAll, updateOne, deleteOne, deleteAll } = require('../services/post');
 const { isValid: isObjectId } = require('mongoose').Types.ObjectId;
 
@@ -51,8 +52,7 @@ router.get('/:postId', async (req, res, next) => {
     }
 });
 
-router.post('/', async (req, res, next) => {
-    try {
+router.post('/', (req, res, next) => {
         const { post } = req.body;
 
         if (!post || (typeof(post?.title) != 'string') || (typeof(post?.content) != 'string')){
@@ -65,27 +65,38 @@ router.post('/', async (req, res, next) => {
         
         // const user = new (require('mongoose').Types.ObjectId);
         const userAuth = req.headers.authorization;
-        if (!userAuth || typeof(userAuth) != 'string'){
+        if (!userAuth || (typeof(userAuth) != 'string')){
             return res.status(400).json({
                 msg: 'Invalid Authorization'
             });
         }
-        //  jwt.verify(userAuth)
-        const result = await createOne(post, user);
 
-        if (result != 0) throw new Error('error while create post');
+        const jwtSecret = process.env.jwtSecret || 'thisissecret';
+        const jwtOption = {
+            algorithms: 'HS512'
+        };
 
-        res.status(201).json({
-            msg: 'post created'
+        jwt.verify(userAuth, jwtSecret, jwtOption, async (err, decoded) => {
+            try {
+                if ((err?.name === 'TokenExpiredError') || (err?.name === 'JsonWebTokenError')){
+                    return res.status(400).json({
+                        msg: 'Invalid JWT'
+                    });
+                }
+
+                const result = await createOne(post, decoded.userId);
+
+                if (result != 0) throw new Error('error while create post');
+        
+                return res.status(201).json({
+                    msg: 'post created'
+                });
+            }catch (e){
+                next({
+                    msg: 'Failed to create post'
+                });
+            }
         });
-    }catch (e){
-        next({
-            msg: 'Failed to create post'
-        });
-        // res.status(500).json({
-        //     msg: 'Server Error: Failed to create post'
-        // });
-    }
 });
 
 router.put('/:postId', async (req, res, next) => {

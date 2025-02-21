@@ -11,6 +11,7 @@ async function createOne(post, user){
             ...post,
             author: user
         });
+
         return 0;
     }catch (e){
         return -1;
@@ -32,9 +33,9 @@ async function readOne(postId){
     }
 }
 
-async function readAll(){
+async function readAll(projection = { title: 1, content: 1, author: 1, _id: 0}){
     try {
-        const posts = await Post.find({}, { _id: 0 });
+        const posts = await Post.find({}, projection);
 
         return posts;        
     }catch (e){
