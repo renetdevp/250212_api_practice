@@ -87,7 +87,7 @@ router.post('/', (req, res, next) => {
                 const result = await createOne(post, decoded.userId);
 
                 if (result != 0) throw new Error('error while create post');
-        
+
                 return res.status(201).json({
                     msg: 'post created'
                 });
