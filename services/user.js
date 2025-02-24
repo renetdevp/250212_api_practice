@@ -20,7 +20,7 @@ async function createOne(userId, hash){
         await newUser.save();
 
         return 0;
-    } catch (e){console.log(e)
+    } catch (e){
         return -3;
     }
 }
@@ -62,10 +62,14 @@ async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
 
 async function updateOne(userId, user){
     try {
-        const isExist = await User.exists({ id: userId });
+        const isExist = await User.exists({ userId: userId });
+
+        if ((typeof(user?.userId) !== 'string') || (typeof(user?.hash) !== 'string')){
+            return -3;
+        }
 
         if (!!isExist){
-            await User.findOneAndUpdate({ id: userId }, user);
+            await User.findOneAndUpdate({ userId: userId }, user);
 
             return 0;
         }else {

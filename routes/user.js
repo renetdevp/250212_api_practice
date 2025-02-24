@@ -91,6 +91,12 @@ router.put('/:userId', async (req, res, next) => {
         const { userId } = req.params;
         const { user } = req.body;
     
+        if (typeof(userId) !== 'string'){
+            return res.status(400).json({
+                msg: 'Invalid userId format'
+            });
+        }
+
         const result = await updateOne(userId, user);
 
         let code = -1, msg = '';
@@ -103,6 +109,9 @@ router.put('/:userId', async (req, res, next) => {
             msg = `User ${userId} is not exist`
         }else if (result === -2){
             throw new Error(`Error while Update User ${userId}`);
+        }else if (result === -3){
+            code = 400;
+            msg = 'Invalid user format';
         }
 
         res.status(code).json({
@@ -112,9 +121,6 @@ router.put('/:userId', async (req, res, next) => {
         next({
             msg: `Failed to Update User ${userId}`
         });
-        // res.status(500).json({
-        //     msg: `Server Error: Failed to Update User ${id}`
-        // });
     }
 });
 
@@ -133,9 +139,6 @@ router.delete('/', async (req, res, next) => {
         next({
             msg: 'Failed to delete Users'
         });
-        // res.status(500).json({
-        //     msg: 'Server Error: Failed to delete Users'
-        // });
     }
 });
 
@@ -162,9 +165,6 @@ router.delete('/:userId', async (req, res, next) => {
         next({
             msg: `Failed to delete User ${userId}`
         });
-        // res.status(500).json({
-        //     msg: `Server Error: Failed to delete User ${id}`
-        // });
     }
 });
 
