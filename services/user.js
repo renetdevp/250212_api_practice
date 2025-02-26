@@ -3,9 +3,9 @@ const User = require('../models/user');
 async function createOne(userId, hash){
     /*
         return code
-        0:  user created
+        0:  user(userId) created
         -1: user request is not valid to user schema
-        -2: user(id) already exist
+        -2: user(userId) already exist
         -3: server error    */
     try {
         // User already exist
@@ -28,8 +28,8 @@ async function createOne(userId, hash){
 async function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
     /*
         return value
-        { id }:   user(id) found
-        0:      user not found
+        { id }:   user(userId) found
+        0:      user(userId) not found
         -1:     server error
     */
     try {
@@ -47,7 +47,7 @@ async function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
 async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
     /*
         return value
-        [{user1}, {user2}]: users found
+        [{user1}, {user2}, ...]: users found
         []:                 users not found
         null:               server error
     */
@@ -61,11 +61,18 @@ async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
 }
 
 async function updateOne(userId, user){
+    /*
+        return value
+        0:  user(userId) modified
+        -1: user request is not valid to user schema
+        -2: user(userId) not found
+        -3: server error
+    */
     try {
         const isExist = await User.exists({ userId: userId });
 
         if ((typeof(user?.userId) !== 'string') || (typeof(user?.hash) !== 'string')){
-            return -3;
+            return -1;
         }
 
         if (!!isExist){
@@ -74,10 +81,10 @@ async function updateOne(userId, user){
             return 0;
         }else {
             // User not exists
-            return -1;
+            return -2;
         }
     } catch (e){
-        return -2;
+        return -3;
     }
 }
 

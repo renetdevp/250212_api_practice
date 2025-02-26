@@ -105,13 +105,13 @@ router.put('/:userId', async (req, res, next) => {
             code = 200;
             msg = `User ${userId} successfully updated`
         }else if (result === -1){
-            code = 404;
-            msg = `User ${userId} is not exist`
-        }else if (result === -2){
-            throw new Error(`Error while Update User ${userId}`);
-        }else if (result === -3){
             code = 400;
             msg = 'Invalid user format';
+        }else if (result === -2){
+            code = 404;
+            msg = `User ${userId} is not exist`
+        }else if (result === -3){
+            throw new Error(`Error while Update User ${userId}`);
         }
 
         res.status(code).json({
