@@ -58,7 +58,7 @@ function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
                 if (!user || (Object.keys(user).length === 0)){
                     return reject([404, `User ${filter?.userId} not found`, null]);
                 }
-    
+
                 resolve([200, null, user]);
             });
         }catch (e){
@@ -88,52 +88,92 @@ function readAll(filter = {}, projection = { userId: 1, _id: 0}){
     });
 }
 
-async function updateOne(userId, user){
-    /*
-        return value
-        0:  user(userId) modified
-        -1: user request is not valid to user schema
-        -2: user(userId) not found
-        -3: server error
-    */
-    try {
-        const isExist = await User.exists({ userId: userId });
-
-        if ((typeof(user?.userId) !== 'string') || (typeof(user?.hash) !== 'string')){
-            return -1;
+/**
+ * Update user(userId)
+ * 
+ * @param {String} userId 
+ * @param {Object} user 
+ * @returns {Array} [code: Number, msg: String]
+ */
+function updateOne(userId, user){
+    return new Promise((resolve, reject) => {
+        if (typeof userId !== 'string'){
+            return reject([400, 'Invalid userId format']);
         }
 
-        if (!!isExist){
-            await User.findOneAndUpdate({ userId: userId }, user);
-
-            return 0;
-        }else {
-            // User not exists
-            return -2;
+        if (typeof user?.userId !== 'string' || typeof user?.hash !== 'string'){
+            return reject([400, 'Invalid user format']);
         }
-    } catch (e){
-        return -3;
-    }
+
+        const existsPromise = User.exists({ userId: userId }).exec();
+
+        existsPromise.then((isExist) => {
+            if (!isExist){
+                return reject([404, `User ${userId} is not exist`]);
+            }
+        })
+        .then(() => {
+            const updatePromise = User.findOneAndUpdate({ userId: userId }, user).exec();
+
+            updatePromise.then(() => {
+                return resolve([201, `User ${userId} updated`]);
+            });
+        })
+        .catch((err) => {
+            return reject([500, err]);
+        });
+    });
 }
 
-async function deleteOne(userId){
-    try {
-        await User.deleteOne({ id: userId });
+/**
+ * Delete user(userId) with userId
+ * 
+ * @param {String} userId 
+ * @returns {Array} [code: Number, msg: String]
+ */
+function deleteOne(userId){
+    return new Promise((resolve, reject) => {
+        if (typeof userId !== 'string'){
+            return reject([400, 'Invalid input']);
+        }
 
-        return true;
-    } catch (e){
-        return false;
-    }
+        const existsPromise = User.exists({ userId: userId }).exec();
+
+        existsPromise.then((isExist) => {
+            if (!isExist){
+                return reject([404, `User ${userId} not found`]);
+            }
+        })
+        .then(() => {
+            const deletePromise = User.deleteOne({ userId: userId }).exec();
+    
+            deletePromise.then(() => {
+                return resolve([201, `User ${userId} deleted`]);
+            });
+        })
+        .catch((err) => {
+            return reject([500, err]);
+        });
+    });
 }
 
-async function deleteAll(){
-    try {
-        await User.deleteMany({});
+/**
+ * Delete All User with filter
+ * 
+ * @param {Object} filter 
+ * @returns {Array} [code: Number, msg: String]
+ */
+function deleteAll(filter = {}){
+    return new Promise((resolve, reject) => {
+        const deletePromise = User.deleteMany(filter).exec();
 
-        return true;
-    } catch (e){
-        return false;
-    }
+        deletePromise.then(() => {
+            return resolve([201, 'All Users deleted']);
+        })
+        .catch((err) => {
+            return reject([500, err])
+        });
+    });
 }
 
 module.exports = {
