@@ -51,10 +51,9 @@ app.get('/status', (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error(err.msg);
-
-    res.status(500).json({
-        msg: `Server Error: ${err.msg}`
+    console.error(`Server error ${err.code}, ${err.msg}`);
+    res.status(err.code).json({
+        msg: err.code<500?`${err.msg}`:'Server Error'
     });
 });
 
