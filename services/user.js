@@ -23,7 +23,7 @@ function createOne(userId, hash){
                 const count = await User.countDocuments({ userId: userId });
                 if (count > 0) return reject([409, `User ${userId} already exists`]);
 
-                const newUser = new User({ userId, hash, salt });
+                const newUser = new User({ userId, derivedKey, salt });
                 const error = newUser.validateSync();
                 // User request is not valid to User schema
                 if (!!error) return reject([400, 'Invalid User Format']);
@@ -51,19 +51,18 @@ function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
             return reject([400, 'Invalid userId', null]);
         }
 
-        try {
-            const findOnePromise = User.findOne(filter, projection).exec();
+        const findOnePromise = User.findOne(filter, projection).exec();
 
-            findOnePromise.then((user) => {
-                if (!user || (Object.keys(user).length === 0)){
-                    return reject([404, `User ${filter?.userId} not found`, null]);
-                }
+        findOnePromise.then((user) => {
+            if (!user || (Object.keys(user).length === 0)){
+                return reject([404, `User ${filter?.userId} not found`, null]);
+            }
 
-                resolve([200, null, user]);
-            });
-        }catch (e){
-            reject([500, `Error while read User ${filter?.userId}`], null);
-        }
+            resolve([200, null, user]);
+        })
+        .catch((err) => {
+            reject([500, err, null]);
+        });
     });
 }
 
@@ -76,15 +75,14 @@ function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
  */
 function readAll(filter = {}, projection = { userId: 1, _id: 0}){
     return new Promise((resolve, reject) => {
-        try {
-            const findPromise = User.find(filter, projection).exec();
+        const findPromise = User.find(filter, projection).exec();
 
-            findPromise.then((users) => {
-                resolve([200, null, users]);
-            });
-        }catch (e){
+        findPromise.then((users) => {
+            resolve([200, null, users]);
+        })
+        .catch((err) => {
             reject([500, 'Failed to read Users', null]);
-        }
+        });
     });
 }
 
@@ -146,13 +144,13 @@ function deleteOne(userId){
         })
         .then(() => {
             const deletePromise = User.deleteOne({ userId: userId }).exec();
-    
+
             deletePromise.then(() => {
-                return resolve([201, `User ${userId} deleted`]);
+                resolve([201, `User ${userId} deleted`]);
             });
         })
         .catch((err) => {
-            return reject([500, err]);
+            reject([500, err]);
         });
     });
 }

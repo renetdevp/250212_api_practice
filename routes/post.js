@@ -5,98 +5,46 @@ const { isValid: isObjectId } = require('mongoose').Types.ObjectId;
 
 router.get('/', async (req, res, next) => {
     try {
-        const posts = await readAll();    //can be null
+        const code = [code, msg, posts] = await readAll();
 
-        res.status(200).json({
-            posts: posts
+        res.status(code).json({
+            posts: posts,
         });
-    } catch (e){
-        next({
-            msg: 'Error while read posts'
-        });
-        // res.status(500).json({
-        //     msg: 'Error while read posts'
-        // });
+    }catch (e){
+        const [code, msg] = e;
+        next({ code: code, msg: msg });
     }
 });
 
 router.get('/:postId', async (req, res, next) => {
     const { postId } = req.params;
 
-    if (!isObjectId(postId)){
-        return res.status(400).json({
-            msg: 'Invalid postId input'
-        });
-    }
-
     try {
-        const post = await readOne(postId);
-        let code = -1, msg = '';
-
-        if (!post){
-            code = 404;
-            msg = `Post ${postId} not found`;
-        }else {
-            code = 200;
-            msg = `Post ${postId} found`
-        }
+        const [code, msg, post] = await readOne({ _id: postId });
 
         res.status(code).json({
-            msg,
-            post,
+            post: post,
         });
     }catch (e){
-        next({
-            msg: `Failed to read post ${postId}`
-        });
+        const [code, msg] = e;
+        next({ code: code, msg: msg });
     }
 });
 
-router.post('/', (req, res, next) => {
-        const { post } = req.body;
+router.post('/', async (req, res, next) => {
+    const { post } = req.body;
+    const userAuth = req.headers.authorization;
 
-        if (!post || (typeof(post?.title) != 'string') || (typeof(post?.content) != 'string')){
-            return res.status(400).json({
-                msg: 'Invalid Post format'
-            });
-        }
+    try {
+        const [code, msg] = await createOne(post, userAuth);
 
-        //future work: get user_info from jwt token and validate with jwt
-        
-        // const user = new (require('mongoose').Types.ObjectId);
-        const userAuth = req.headers.authorization;
-        if (!userAuth || (typeof(userAuth) != 'string')){
-            return res.status(400).json({
-                msg: 'Invalid Authorization'
-            });
-        }
-
-        const jwtSecret = process.env.jwtSecret || 'thisissecret';
-        const jwtOption = {
-            algorithms: 'HS512'
-        };
-
-        jwt.verify(userAuth, jwtSecret, jwtOption, async (err, decoded) => {
-            try {
-                if ((err?.name === 'TokenExpiredError') || (err?.name === 'JsonWebTokenError')){
-                    return res.status(400).json({
-                        msg: 'Invalid JWT'
-                    });
-                }
-
-                const result = await createOne(post, decoded.userId);
-
-                if (result != 0) throw new Error('error while create post');
-
-                return res.status(201).json({
-                    msg: 'post created'
-                });
-            }catch (e){
-                next({
-                    msg: 'Failed to create post'
-                });
-            }
+        res.status(code).json({
+            msg: msg,
         });
+    }catch (e){
+        const [code, msg] = e;
+        next({ code: code, msg: msg });
+    }
 });
 
 router.put('/:postId', async (req, res, next) => {
