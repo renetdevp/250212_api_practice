@@ -5,12 +5,12 @@ const { isValid: isObjectId } = require('mongoose').Types.ObjectId;
 
 router.get('/', async (req, res, next) => {
     try {
-        const code = [code, msg, posts] = await readAll();
+        const [code, msg, posts] = await readAll();
 
         res.status(code).json({
             posts: posts,
         });
-    }catch (e){
+    }catch (e){console.error(e);
         const [code, msg] = e;
         next({ code: code, msg: msg });
     }
@@ -49,32 +49,17 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:postId', async (req, res, next) => {
     const { postId } = req.params;
-    
-    if (!isObjectId(postId)){
-        return res.status(400).json({
-            msg: 'Invalid postId input'
-        });
-    }
+    const { post } = req.body;
 
     try {
-        const result = await updateOne(postId);
-        let code = -1, msg = '';
-
-        if (result === 0){
-            code = 200;
-            msg = `Post ${postId} updated`;
-        }else if (result === -1){
-            code = 404;
-            msg = `Post ${postId} not found`;
-        }else throw new Error('Error while update Post');
+        const [code, msg] = await updateOne(postId, post);
 
         res.status(code).json({
-            msg,
+            msg: msg,
         });
     }catch (e){
-        next({
-            msg: `Failed to update post ${postId}`
-        });
+        const [code, msg] = e;
+        next({ code: code, msg: msg });
     }
 });
 
@@ -102,29 +87,15 @@ router.delete('/', async (req, res, next) => {
 router.delete('/:postId', async (req, res, next) => {
     const { postId } = req.params;
     
-    if (!isObjectId(postId)){
-        return res.status(400).json({
-            msg: 'Invalid postId input'
-        });
-    }
-
     try {
-        const result = await deleteOne(postId);
+        const [code, msg] = await deleteOne(postId);
 
-        if (!result){
-            throw new Error(`Error while delete Post ${postId}`);
-        } else {
-            res.status(200).json({
-                msg: 'Posts deleted'
-            });
-        }
-    } catch (e){
-        next({
-            msg: `Failed to delete Post ${postId}`
+        res.status(code).json({
+            msg: msg
         });
-        // res.status(500).json({
-        //     msg: 'Server Error: failed to delete Posts'
-        // });
+    }catch (e){
+        const [code, msg] = e;
+        next({ code: code, msg: msg });
     }
 });
 

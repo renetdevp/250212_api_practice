@@ -1,5 +1,4 @@
-const User = require('../models/user');
-const crypto = require('crypto');
+const { User, encryptPassword } = require('../models/user');
 
 /**
  * Create user(userId) with userId,hash
@@ -9,32 +8,30 @@ const crypto = require('crypto');
  * @returns {Array} [code: Number, msg: String]
  */
 function createOne(userId, hash){
-    return new Promise((resolve, reject) => {
-        const salt = process.env.userHashSalt || '[tempSalt]';
-        const hashAlgorithm = process.env.hashAlgorithm || 'sha512';
+    return new Promise(async (resolve, reject) => {
+        if (!isValidUserFormat({ userId, hash })){
+            return reject([400, 'Invalid User Format']);
+        }
 
-        crypto.pbkdf2(hash, salt, 310000, 32, hashAlgorithm, async (err, derivedKey) => {
-            try {
-                if (err){
-                    return reject([500, 'Failed to create hash']);
-                }
-
-                // User already exist
-                const count = await User.countDocuments({ userId: userId });
-                if (count > 0) return reject([409, `User ${userId} already exists`]);
-
-                const newUser = new User({ userId, derivedKey, salt });
-                const error = newUser.validateSync();
-                // User request is not valid to User schema
-                if (!!error) return reject([400, 'Invalid User Format']);
-
-                await newUser.save();
-
-                resolve([201, `User ${userId} created`]);
-            } catch (e){
-                reject([500, 'Error while Create User']);
+        try {
+            const count = await User.countDocuments({ userId }).exec();
+            if (count > 0){
+                return reject([409, `User ${userId} already exists`]);
             }
-        });
+
+            const [err, msg, salt, encrypted] = await encryptPassword(hash);
+            if (err){
+                return reject([500, msg]);
+            }
+
+            const newUser = new User({ userId, hash: encrypted, salt });
+            await newUser.save();
+
+            resolve([201, `User ${userId} created`]);
+        }catch (e){
+            const [code, msg] = e;
+            reject([code, msg]);
+        }
     });
 }
 
@@ -51,10 +48,10 @@ function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
             return reject([400, 'Invalid userId', null]);
         }
 
-        const findOnePromise = User.findOne(filter, projection).exec();
+        const findOnePromise = User.findOne(filter, projection).lean().exec();
 
         findOnePromise.then((user) => {
-            if (!user || (Object.keys(user).length === 0)){
+            if (isEmptyUser(user)){
                 return reject([404, `User ${filter?.userId} not found`, null]);
             }
 
@@ -75,7 +72,7 @@ function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
  */
 function readAll(filter = {}, projection = { userId: 1, _id: 0}){
     return new Promise((resolve, reject) => {
-        const findPromise = User.find(filter, projection).exec();
+        const findPromise = User.find(filter, projection).lean().exec();
 
         findPromise.then((users) => {
             resolve([200, null, users]);
@@ -94,31 +91,26 @@ function readAll(filter = {}, projection = { userId: 1, _id: 0}){
  * @returns {Array} [code: Number, msg: String]
  */
 function updateOne(userId, user){
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         if (typeof userId !== 'string'){
             return reject([400, 'Invalid userId format']);
         }
 
-        if (typeof user?.userId !== 'string' || typeof user?.hash !== 'string'){
+        if (!isValidUserFormat(user)){
             return reject([400, 'Invalid user format']);
         }
 
-        const existsPromise = User.exists({ userId: userId }).exec();
+        const updateOnePromise = User.updateOne({ userId: userId }, user).exec();
 
-        existsPromise.then((isExist) => {
-            if (!isExist){
-                return reject([404, `User ${userId} is not exist`]);
+        updateOnePromise.then((result) => {
+            if (result.matchedCount === 0){
+                return reject([404, `User ${userId} not found`]);
             }
-        })
-        .then(() => {
-            const updatePromise = User.findOneAndUpdate({ userId: userId }, user).exec();
 
-            updatePromise.then(() => {
-                return resolve([201, `User ${userId} updated`]);
-            });
+            resolve([201, `User ${userId} updated`]);
         })
         .catch((err) => {
-            return reject([500, err]);
+            reject([500, err]);
         });
     });
 }
@@ -172,6 +164,29 @@ function deleteAll(filter = {}){
             return reject([500, err])
         });
     });
+}
+
+function isValidUserFormat(user){
+    if (!user){
+        return false;
+    }
+
+    if (typeof user.userId !== 'string'){
+        return false;
+    }
+
+    if (typeof user.hash !== 'string'){
+        return false;
+    }
+
+    return true;
+}
+
+function isEmptyUser(user){
+    if (!user) return true;
+    if (Object.keys(user).length === 0) return true;
+
+    return false;
 }
 
 module.exports = {
