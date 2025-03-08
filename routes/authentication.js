@@ -5,14 +5,16 @@ router.post('/', async (req, res, next) => {
     const { userId, hash } = req.body;
 
     try {
-        const [code, msg, token] = await authenticate(userId, hash);
+        const { err, token } = await authenticate(userId, hash);
+        if (err){
+            return next(err);
+        }
 
-        res.status(code).json({
+        res.status(201).json({
             token: token
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 

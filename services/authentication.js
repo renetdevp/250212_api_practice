@@ -1,51 +1,76 @@
-const jwt = require('jsonwebtoken');
 const { timingSafeEqual } = require('crypto');
-const { User, encryptPassword } = require('../models/user');
+const { User, encryptPassword, isValidUserFormat } = require('../models/user');
+const { sign } = require('./jwt');
 
-function authenticate(userId, hash){
-    return new Promise(async (resolve, reject) => {
-        if (!isValidUserFormat({ userId, hash })){
-            return reject([400, 'Invalid User Format', null]);
-        }
+/**
+ * 
+ * @param {String} userId 
+ * @param {String} password 
+ * @returns {Object} { err: object|null, token: string|null }
+ */
+async function authenticate(userId, password){
+    if (!isValidUserFormat({ userId, hash: password })){
+        return {
+            err: {
+                code: 400,
+                msg: 'Invalid User Format',
+            },
+            token: null,
+        };
+    }
 
-        const user = await User.findOne({ userId }, { hash: 1, salt: 1 }).lean().exec();
+    try {
+        const user = await User.findOne({ userId }, { hash: 1, salt: 1 }).lean();
+
         if (!user){
-            return reject([404, `User ${userId} not found`]);
+            return {
+                err: {
+                    code: 404,
+                    msg: `User ${userId} not found`,
+                },
+                token: null,
+            };
         }
 
-        const [err, msg, localSalt, encrypted] = await encryptPassword(hash, user.salt);
-        const encryptedBuffer = Buffer.from(encrypted, 'utf-8');
-        const userHashBuffer = Buffer.from(user.hash, 'utf-8');
-        if (!timingSafeEqual(encryptedBuffer, userHashBuffer)){
-            return reject([401, 'Failed to Authenticate', null]);
+        const { encrypted } = await encryptPassword(password, user.salt);
+
+        if (!isEqual(encrypted, user.hash)){
+            return {
+                err: {
+                    code: 401,
+                    msg: 'Failed to Authenticate',
+                },
+                token: null,
+            };
         }
 
-        const jwtSecret = process.env.jwtSecret || 'thisissecret';
-        const jwtOption = {
-            algorithm: 'HS512',
-            expiresIn: '1h',
-        }
-        //  https://stackoverflow.com/a/56872864, jwt.sign()은 callback 함수가 제공되면 비동기로, 제공되지 않으면 동기식으로 작동함
-        jwt.sign({ userId: userId }, jwtSecret, jwtOption, (err, token) => {
-            if (err){
-                return reject([500, err]);
-            }
+        const token = await sign(userId);
 
-            resolve([201, null, token]);
-        });
-    });
+        return {
+            err: null,
+            token: token,
+        };
+    }catch (e){
+        return {
+            err: {
+                code: 500,
+                msg: 'Error while authenticate',
+            },
+        };
+    }
 }
 
-function isValidUserFormat(user){
-    if (!user){
-        return false;
-    }
+/**
+ * 
+ * @param {String} encrypted 
+ * @param {String} hash 
+ * @returns {Boolean}
+ */
+function isEqual(encrypted, hash){
+    const encryptedBuffer = Buffer.from(encrypted);
+    const userHashBuffer = Buffer.from(hash);
 
-    if (typeof user.userId !== 'string'){
-        return false;
-    }
-
-    if (typeof user.hash !== 'string'){
+    if (!timingSafeEqual(encryptedBuffer, userHashBuffer)){
         return false;
     }
 

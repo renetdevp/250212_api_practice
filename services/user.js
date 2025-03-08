@@ -5,34 +5,49 @@ const { User, encryptPassword } = require('../models/user');
  * 
  * @param {String} userId 
  * @param {String} hash 
- * @returns {Array} [code: Number, msg: String]
+ * @returns {Object}
  */
-function createOne(userId, hash){
-    return new Promise(async (resolve, reject) => {
-        if (!isValidUserFormat({ userId, hash })){
-            return reject([400, 'Invalid User Format']);
+async function createOne(userId, hash){
+    if (!isValidUserFormat({ userId, hash })){
+        return {
+            err: {
+                code: 400,
+                msg: 'Invalid User Format',
+            }
+        };
+    }
+
+    try {
+        const count = await User.countDocuments({ userId }).exec();
+        if (count > 0){
+            return {
+                err: {
+                    code: 409,
+                    msg: `User ${userId} already exist`
+                }
+            };
         }
 
-        try {
-            const count = await User.countDocuments({ userId }).exec();
-            if (count > 0){
-                return reject([409, `User ${userId} already exists`]);
-            }
-
-            const [err, msg, salt, encrypted] = await encryptPassword(hash);
-            if (err){
-                return reject([500, msg]);
-            }
-
-            const newUser = new User({ userId, hash: encrypted, salt });
-            await newUser.save();
-
-            resolve([201, `User ${userId} created`]);
-        }catch (e){
-            const [code, msg] = e;
-            reject([code, msg]);
+        const { err, salt, encrypted } = await encryptPassword(hash);
+        if (err){
+            return err;
         }
-    });
+
+        const newUser = new User({ userId, hash: encrypted, salt, });
+        await newUser.save();
+
+        return {
+            err: null,
+            success: true,
+        }
+    }catch (e){
+        return {
+            err: {
+                code: 500,
+                msg: `Error while create User ${userId}`,
+            }
+        };
+    }
 }
 
 /**

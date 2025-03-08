@@ -24,7 +24,7 @@ const userModel = model('User', userSchema);
  * 
  * @param {String} password 
  * @param {undefined|String} salt default: undefined
- * @returns [err: boolean, msg: String, salt: String, derivedKey: String]
+ * @returns {Object} { err: object|null, salt: String, derivedKey: String }
  */
 function encryptPassword(password, salt=undefined){
     return new Promise((resolve, reject) => {
@@ -33,15 +33,41 @@ function encryptPassword(password, salt=undefined){
 
         pbkdf2(password, localSalt, 310000, 32, hashAlgorithm, (err, derivedKey) => {
             if (err){
-                return reject([true, 'Failed to create hash']);
+                return reject({
+                    err: {
+                        code: 500,
+                        msg: 'Failed to encrypt password'
+                    },
+                });
             }
 
-            resolve([false, null, localSalt, derivedKey.toString('hex')]);
+            resolve({
+                err: null,
+                salt: localSalt,
+                encrypted: derivedKey.toString('hex'),
+            });
         });
     });
+}
+
+function isValidUserFormat(user){
+    if (!user){
+        return false;
+    }
+
+    if (typeof user.userId !== 'string'){
+        return false;
+    }
+
+    if (typeof user.hash !== 'string'){
+        return false;
+    }
+
+    return true;
 }
 
 module.exports = {
     User: userModel,
     encryptPassword,
+    isValidUserFormat,
 };

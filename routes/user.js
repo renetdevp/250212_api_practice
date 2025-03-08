@@ -33,14 +33,16 @@ router.post('/', async (req, res, next) => {
     const { userId, hash } = req.body;
 
     try {
-        const [code, msg] = await createOne(userId, hash);
+        const { err } = await createOne(userId, hash);
+        if (err){
+            return next(err);
+        }
 
-        res.status(code).json({
-            msg: msg,
+        res.status(201).json({
+            msg: `User ${userId} created`,
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 

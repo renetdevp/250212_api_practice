@@ -1,7 +1,6 @@
 const Post = require('../models/post');
-const jwt = require('jsonwebtoken');
+const { verify } = require('./jwt');
 const { isValidObjectId } = require('mongoose');
-const { exists } = require('../models/user');
 
 /**
  * Create post(postId) with post, userAuth
@@ -11,7 +10,7 @@ const { exists } = require('../models/user');
  * @returns {Array} [code: Number, msg: String]
  */
 function createOne(post, userAuth){
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         if (!isValidPostFormat(post)){
             return reject([400, 'Invalid Post format']);
         }
@@ -20,27 +19,21 @@ function createOne(post, userAuth){
             return reject([400, 'Invalid User Identification']);
         }
 
-        const jwtSecret = process.env.jwtSecret || 'thisissecret';
-        const jwtOption = {
-            algorithms: 'HS512'
-        };
+        verify(userAuth)
+        .then((result) => {
+            const [code, decodedUserId] = result;
 
-        jwt.verify(userAuth, jwtSecret, jwtOption, (err, decoded) => {
-            if (err){
-                return reject(getJWTErrorCode(err.name));
-            }
-
-            const createPromise = Post.create({
+            return Post.create({
                 ...post,
-                author: decoded.userId
+                author: decodedUserId,
             });
-
-            createPromise.then((doc) => {
-                resolve([201, `User ${doc.title} created`]);
-            })
-            .catch((err) => {
-                reject[500, err];
-            });
+        })
+        .then((doc) => {
+            resolve([201, `Post ${doc.title} created`]);
+        })
+        .catch((err) => {
+            const [code, msg] = err;
+            reject([code, msg]);
         });
     });
 }

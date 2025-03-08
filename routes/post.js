@@ -1,7 +1,5 @@
 const router = require('express').Router();
-const jwt = require('jsonwebtoken');
 const { createOne, readOne, readAll, updateOne, deleteOne, deleteAll } = require('../services/post');
-const { isValid: isObjectId } = require('mongoose').Types.ObjectId;
 
 router.get('/', async (req, res, next) => {
     try {
@@ -10,7 +8,7 @@ router.get('/', async (req, res, next) => {
         res.status(code).json({
             posts: posts,
         });
-    }catch (e){console.error(e);
+    }catch (e){
         const [code, msg] = e;
         next({ code: code, msg: msg });
     }
