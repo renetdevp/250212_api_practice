@@ -7,35 +7,25 @@ const { isValidObjectId } = require('mongoose');
  * 
  * @param {Object} post 
  * @param {String} userAuth
- * @returns {Array} [code: Number, msg: String]
+ * @returns {Object}
  */
-function createOne(post, userAuth){
-    return new Promise(async (resolve, reject) => {
-        if (!isValidPostFormat(post)){
-            return reject([400, 'Invalid Post format']);
-        }
+async function createOne(post, userAuth){
+    if (!isValidPostFormat(post)){
+        return createErrorResponse(400, 'Invalid Post Format');
+    }
 
-        if (!isValidUserAuth(userAuth)){
-            return reject([400, 'Invalid User Identification']);
-        }
+    if (!isValidUserAuth(userAuth)){
+        return createErrorResponse(400, 'Invalid User Authentication');
+    }
 
-        verify(userAuth)
-        .then((result) => {
-            const [code, decodedUserId] = result;
+    const userId = await verify(userAuth);
 
-            return Post.create({
-                ...post,
-                author: decodedUserId,
-            });
-        })
-        .then((doc) => {
-            resolve([201, `Post ${doc.title} created`]);
-        })
-        .catch((err) => {
-            const [code, msg] = err;
-            reject([code, msg]);
-        });
+    await Post.create({
+        ...post,
+        author: userId,
     });
+
+    return { err: null };
 }
 
 /**
@@ -43,33 +33,30 @@ function createOne(post, userAuth){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Array} [code: Number, msg: String, user: Object]
+ * @returns {Object} { err: object|null, post: object|null }
  */
-function readOne(filter = {}, projection = { __v: 0 }){
-    return new Promise((resolve, reject) => {
-        if (!isValidObjectId(filter?._id)){
-            return reject([400, 'Invalid postId']);
+async function readOne(filter = {}, projection = { __v: 0 }){
+    if (!isValidObjectId(filter?._id)){
+        return createErrorResponse(400, 'Invalid postId');
+    }
+
+    // https://mongoosejs.com/docs/api/model.html#Model.findOne()
+    // .lean()을 적용하지 않으면 find의 결과물은 document이고, document는 내부에 change track을 위한 내부 상태가 많아 js object보다 크기가 큼
+    // 하지만, .lean()을 적용하면 change track, casting and validation, getters and setters, virtuals, save()를 이용할 수 없음
+    // 이러한 .lean()은 쿼리의 실행 정보를 가공 없이 바로 response로 보낼 때, 즉 HTTP GET 요청에서 사용하는게 적절함
+    // .lean()은 절대로 POST, PUT 메소드에서 이용해선 안됨
+
+    try {
+        const post = await Post.findOne(filter, projection).lean();
+
+        if (isEmptyPost(post)){
+            return createErrorResponse(404, `Post${filter._id} not found`);
         }
 
-        // https://mongoosejs.com/docs/api/model.html#Model.findOne()
-        // .lean()을 적용하지 않으면 find의 결과물은 document이고, document는 내부에 change track을 위한 내부 상태가 많아 js object보다 크기가 큼
-        // 하지만, .lean()을 적용하면 change track, casting and validation, getters and setters, virtuals, save()를 이용할 수 없음
-        // 이러한 .lean()은 쿼리의 실행 정보를 가공 없이 바로 response로 보낼 때, 즉 HTTP GET 요청에서 사용하는게 적절함
-        // .lean()은 절대로 POST, PUT 메소드에서 이용해선 안됨
-
-        const findOnePromise = Post.findOne(filter, projection).lean().exec();
-
-        findOnePromise.then((post) => {
-            if (isEmptyPost(post)){
-                return reject([404, `Post ${ filter._id } not found`]);
-            }
-
-            resolve([200, null, post]);
-        })
-        .catch((err) => {
-            reject([500, err, null]);
-        });
-    });
+        return { err: null, post };
+    }catch (e){
+        return { err: e };
+    }
 }
 
 /**
@@ -77,74 +64,76 @@ function readOne(filter = {}, projection = { __v: 0 }){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Array} [code: Number, msg: String, posts: Array]
+ * @returns {Object} { err: object|null, posts: object|null }
  */
-function readAll(filter = {}, projection = { _id: 0, title: 1, content: 1, author: 1 }){
-    return new Promise((resolve, reject) => {
-        const findPromise = Post.find(filter, projection).lean().exec();
+async function readAll(filter = {}, projection = { __v: 0 }){
+    const posts = await Post.find(filter, projection).lean();
 
-        findPromise.then((posts) => {
-            resolve([200, null, posts]);
-        })
-        .catch((err) => {
-            reject([500, err, null]);
-        });
-    });
+    return { err: null, posts };
 }
 
-function updateOne(postId, post){
-    return new Promise((resolve, reject) => {
-        if (!isValidObjectId(postId)){
-            return reject([400, 'Invalid postId']);
+/**
+ * 
+ * @param {String} postId 
+ * @param {Object} post 
+ * @param {String} userAuth
+ * @returns {Object} { err: object|null }
+ */
+async function updateOne(postId, post, userAuth){
+    if (!isValidObjectId(postId)){
+        return createErrorResponse(400, 'Invalid postId');
+    }
+
+    if (!isValidPostFormat(post)){
+        return createErrorResponse(400, 'Invalid post format');
+    }
+
+    if (!isValidUserAuth(userAuth)){
+        return createErrorResponse(400, 'Invalid User Authentication');
+    }
+
+    try {
+        const foundPost = await Post.findOne({ _id: postId });
+
+        if (isEmptyPost(foundPost)){
+            return createErrorResponse(404, `Post ${postId} not found`);
         }
 
-        if (!isValidPostFormat(post)){
-            return reject([400, 'Invalid post format']);
+        const userId = await verify(userAuth);
+
+        if (foundPost.author !== userId){
+            return createErrorResponse(403, 'Not Authorization');
         }
 
-        const updateOnePromise = Post.updateOne({ _id: postId }, post).exec();
+        await Post.updateOne({ _id: postId }, post);
 
-        updateOnePromise.then((result) => {
-            if (result.matchedCount === 0){
-                return reject([404, `Post ${postId} not found`]);
-            }
-
-            resolve([201, `Post ${postId} updated`]);
-        })
-        .catch((err) => {
-            reject([500, err]);
-        });
-    });
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(e.code || 500, e.msg, e.details);
+    }
 }
 
-function deleteOne(postId){
-    return new Promise((resolve, reject) => {
-        if (!isValidObjectId(postId)){
-            return reject([400, 'Invalid postId']);
-        }
+async function deleteOne(postId){
+    if (!isValidObjectId(postId)){
+        return createErrorResponse(400, 'Invalid postId');
+    }
 
-        const deleteOnePromise = Post.deleteOne({ _id: postId }).exec();
+    const result = await Post.deleteOne({ _id: postId });
 
-        deleteOnePromise.then((result) => {
-            if (result.deletedCount === 0){
-                return reject([404, `Post ${postId} not found`]);
-            }
+    if (result.deletedCount === 0){
+        return createErrorResponse(404, `Post ${postId} not found`);
+    }
 
-            resolve([201, `Post ${postId} deleted`]);
-        })
-        .catch((err) => {
-            reject([500, err]);
-        });
-    });
+    return { err: null };
 }
 
 async function deleteAll(){
     try {
         await Post.deleteMany({});
 
-        return true;
-    } catch (e){
-        return false;
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(e.code || 500, e.msg, e.details);
     }
 }
 
@@ -175,24 +164,21 @@ function isValidUserAuth(userAuth){
     return true;
 }
 
-function getJWTErrorCode(errName){
-    const errMap = {
-        'TokenExpiredError': [400, 'JWT expired'],
-        'JsonWebTokenError': [400, 'Invalid JWT'],
-    };
-
-    if (!!errMap[errName]){
-        return errMap[errName];
-    }
-
-    return [500, 'Error while verify JWT'];
-}
-
 function isEmptyPost(post){
     if (!post) return true;
     if (Object.keys(post).length === 0) return true;
 
     return false;
+}
+
+function createErrorResponse(code, msg, details=undefined){
+    return {
+        err: {
+            code,
+            msg,
+            details,
+        },
+    };
 }
 
 module.exports = {

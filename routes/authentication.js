@@ -6,6 +6,7 @@ router.post('/', async (req, res, next) => {
 
     try {
         const { err, token } = await authenticate(userId, hash);
+
         if (err){
             return next(err);
         }

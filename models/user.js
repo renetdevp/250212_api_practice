@@ -24,7 +24,7 @@ const userModel = model('User', userSchema);
  * 
  * @param {String} password 
  * @param {undefined|String} salt default: undefined
- * @returns {Object} { err: object|null, salt: String, derivedKey: String }
+ * @returns {Promise<object>} { err: object|null, salt: String, derivedKey: String }
  */
 function encryptPassword(password, salt=undefined){
     return new Promise((resolve, reject) => {

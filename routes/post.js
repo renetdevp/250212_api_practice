@@ -3,14 +3,17 @@ const { createOne, readOne, readAll, updateOne, deleteOne, deleteAll } = require
 
 router.get('/', async (req, res, next) => {
     try {
-        const [code, msg, posts] = await readAll();
+        const { err, posts } = await readAll();
 
-        res.status(code).json({
-            posts: posts,
+        if (err){
+            return next(err);
+        }
+
+        res.status(200).json({
+            posts,
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
@@ -18,14 +21,17 @@ router.get('/:postId', async (req, res, next) => {
     const { postId } = req.params;
 
     try {
-        const [code, msg, post] = await readOne({ _id: postId });
+        const { err, post } = await readOne({ _id: postId });
 
-        res.status(code).json({
+        if (err){
+            return next(err);
+        }
+
+        res.status(200).json({
             post: post,
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
@@ -34,51 +40,53 @@ router.post('/', async (req, res, next) => {
     const userAuth = req.headers.authorization;
 
     try {
-        const [code, msg] = await createOne(post, userAuth);
+        const { err } = await createOne(post, userAuth);
 
-        res.status(code).json({
-            msg: msg,
+        if (err){
+            return next(err);
+        }
+
+        res.status(201).json({
+            msg: `Post ${post.title} created`,
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
 router.put('/:postId', async (req, res, next) => {
     const { postId } = req.params;
     const { post } = req.body;
+    const userAuth = req.headers.authorization;
 
     try {
-        const [code, msg] = await updateOne(postId, post);
+        const { err } = await updateOne(postId, post, userAuth);
 
-        res.status(code).json({
-            msg: msg,
+        if (err){
+            return next(err);
+        }
+
+        res.status(201).json({
+            msg: `Post ${postId} updated`,
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
 router.delete('/', async (req, res, next) => {
     try {
-        const result = await deleteAll();
+        const { err } = await deleteAll();
 
-        if (!result){
-            throw new Error('Error while delete Posts');
-        } else {
-            res.status(200).json({
-                msg: 'Posts deleted'
-            });
+        if (err){
+            return next(err);
         }
-    } catch (e){
-        next({
-            msg: 'Failed to delete Posts'
+        
+        res.status(201).json({
+            msg: `Posts deleted`
         });
-        // res.status(500).json({
-        //     msg: 'Server Error: failed to delete Posts'
-        // });
+    } catch (e){
+        next(e);
     }
 });
 
@@ -86,14 +94,17 @@ router.delete('/:postId', async (req, res, next) => {
     const { postId } = req.params;
     
     try {
-        const [code, msg] = await deleteOne(postId);
+        const { err } = await deleteOne(postId);
 
-        res.status(code).json({
-            msg: msg
+        if (err){
+            return next(err);
+        }
+
+        res.status(201).json({
+            msg: `Post ${postId} deleted`
         });
     }catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 

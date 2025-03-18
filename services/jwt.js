@@ -1,6 +1,4 @@
 const jwt = require('jsonwebtoken');
-const { timingSafeEqual } = require('crypto');
-const { User, encryptPassword, isValidUserFormat } = require('../models/user');
 
 const jwtSecret = process.env.jwtSecret || 'thisisSecret';
 const jwtOption = {
@@ -11,14 +9,18 @@ const jwtOption = {
 /**
  * 
  * @param {String} userId
- * @returns 
+ * @returns {Promise<String>}
  */
 function sign(userId){
     return new Promise((resolve, reject) => {
         //  https://stackoverflow.com/a/56872864, jwt.sign()은 callback 함수가 제공되면 비동기로, 제공되지 않으면 동기식으로 작동함
         jwt.sign({ userId: userId }, jwtSecret, jwtOption, (err, token) => {
             if (err){
-                return reject(new Error('Error while sign JWT'));
+                return reject({
+                    code: 500,
+                    msg: 'Error while signing JWT',
+                    details: err.message,
+                });
             }
 
             resolve(token);
@@ -29,32 +31,50 @@ function sign(userId){
 /**
  * 
  * @param {String} userAuth
- * @returns {Array} [code: Number, ]
+ * @returns {Promise<String>}
  */
 function verify(userAuth){
     return new Promise((resolve, reject) => {
         jwt.verify(userAuth, jwtSecret, jwtOption, (err, decoded) => {
             if (err){
-                return reject(getJWTErrorCode(err.name));
+                const errContent = jwtErrorMap(err.name);
+
+                return reject({
+                    ...errContent,
+                    details: err.message,
+                });
             }
 
-            return resolve([200, decoded.userId]);
+            return resolve(decoded.userId);
         });
     });
 }
 
-
-function getJWTErrorCode(errName){
-    const errMap = {
-        'TokenExpiredError': [400, 'JWT expired'],
-        'JsonWebTokenError': [400, 'Invalid JWT'],
+/**
+ * 
+ * @param {String} errName 
+ * @returns {Object}
+ */
+function jwtErrorMap(errName){
+    const errorMap = {
+        'TokenExpiredError': {
+            code: 400,
+            msg: 'JWT expired'
+        },
+        'JsonWebTokenError': {
+            code: 400,
+            msg: 'Invalid JWT'
+        },
     };
 
-    if (!!errMap[errName]){
-        return errMap[errName];
+    if (!errorMap[errName]){
+        return {
+            code: 500,
+            msg: 'Error while verify Token'
+        };
     }
 
-    return [500, 'Error while verify JWT'];
+    return errorMap[errName];
 }
 
 const jwtService = {

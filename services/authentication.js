@@ -10,38 +10,19 @@ const { sign } = require('./jwt');
  */
 async function authenticate(userId, password){
     if (!isValidUserFormat({ userId, hash: password })){
-        return {
-            err: {
-                code: 400,
-                msg: 'Invalid User Format',
-            },
-            token: null,
-        };
+        return createErrorResponse(400, 'Invalid User Format');
     }
 
     try {
         const user = await User.findOne({ userId }, { hash: 1, salt: 1 }).lean();
-
         if (!user){
-            return {
-                err: {
-                    code: 404,
-                    msg: `User ${userId} not found`,
-                },
-                token: null,
-            };
+            return createErrorResponse(404, `User ${userId} not found`);
         }
 
         const { encrypted } = await encryptPassword(password, user.salt);
 
         if (!isEqual(encrypted, user.hash)){
-            return {
-                err: {
-                    code: 401,
-                    msg: 'Failed to Authenticate',
-                },
-                token: null,
-            };
+            return createErrorResponse(401, 'Failed to Authenticate');
         }
 
         const token = await sign(userId);
@@ -51,12 +32,7 @@ async function authenticate(userId, password){
             token: token,
         };
     }catch (e){
-        return {
-            err: {
-                code: 500,
-                msg: 'Error while authenticate',
-            },
-        };
+        return createErrorResponse(e.code, e.msg, e.details);
     }
 }
 
@@ -67,14 +43,32 @@ async function authenticate(userId, password){
  * @returns {Boolean}
  */
 function isEqual(encrypted, hash){
-    const encryptedBuffer = Buffer.from(encrypted);
-    const userHashBuffer = Buffer.from(hash);
-
-    if (!timingSafeEqual(encryptedBuffer, userHashBuffer)){
+    if (encrypted.length !== hash.length){
         return false;
     }
 
-    return true;
+    const encryptedBuffer = Buffer.from(encrypted);
+    const userHashBuffer = Buffer.from(hash);
+
+    return timingSafeEqual(encryptedBuffer, userHashBuffer);
+}
+
+/**
+ * 
+ * @param {Number} code errCode
+ * @param {String} msg errMessage
+ * @param {String|undefined} details 
+ * @returns {Object}
+ */
+function createErrorResponse(code, msg, details=undefined){
+    return {
+        err: {
+            code,
+            msg,
+        },
+        token: null,
+        details,
+    };
 }
 
 module.exports = {
