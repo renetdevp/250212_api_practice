@@ -7,7 +7,7 @@ const { isValidObjectId } = require('mongoose');
  * 
  * @param {Object} post 
  * @param {String} userAuth
- * @returns {Object}
+ * @returns {Object|null}
  */
 async function createOne(post, userAuth){
     if (!isValidPostFormat(post)){
@@ -18,14 +18,18 @@ async function createOne(post, userAuth){
         return createErrorResponse(400, 'Invalid User Authentication');
     }
 
-    const userId = await verify(userAuth);
+    try {
+        const userId = await verify(userAuth);
 
-    await Post.create({
-        ...post,
-        author: userId,
-    });
+        await Post.create({
+            ...post,
+            author: userId,
+        });
 
-    return { err: null };
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 /**
@@ -55,7 +59,7 @@ async function readOne(filter = {}, projection = { __v: 0 }){
 
         return { err: null, post };
     }catch (e){
-        return { err: e };
+        return createErrorResponse(500, e.msg);
     }
 }
 
@@ -67,9 +71,13 @@ async function readOne(filter = {}, projection = { __v: 0 }){
  * @returns {Object} { err: object|null, posts: object|null }
  */
 async function readAll(filter = {}, projection = { __v: 0 }){
-    const posts = await Post.find(filter, projection).lean();
+    try {
+        const posts = await Post.find(filter, projection).lean();
 
-    return { err: null, posts };
+        return { err: null, posts };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 /**
@@ -77,7 +85,7 @@ async function readAll(filter = {}, projection = { __v: 0 }){
  * @param {String} postId 
  * @param {Object} post 
  * @param {String} userAuth
- * @returns {Object} { err: object|null }
+ * @returns {Object|null} { err: object|null }
  */
 async function updateOne(postId, post, userAuth){
     if (!isValidObjectId(postId)){
@@ -93,7 +101,7 @@ async function updateOne(postId, post, userAuth){
     }
 
     try {
-        const foundPost = await Post.findOne({ _id: postId });
+        const foundPost = await Post.findOne({ _id: postId }).lean();
 
         if (isEmptyPost(foundPost)){
             return createErrorResponse(404, `Post ${postId} not found`);
@@ -102,14 +110,14 @@ async function updateOne(postId, post, userAuth){
         const userId = await verify(userAuth);
 
         if (foundPost.author !== userId){
-            return createErrorResponse(403, 'Not Authorization');
+            return createErrorResponse(403, 'Not authorizated');
         }
 
         await Post.updateOne({ _id: postId }, post);
 
         return { err: null };
     }catch (e){
-        return createErrorResponse(e.code || 500, e.msg, e.details);
+        return createErrorResponse(500, e.msg);
     }
 }
 
@@ -118,13 +126,17 @@ async function deleteOne(postId){
         return createErrorResponse(400, 'Invalid postId');
     }
 
-    const result = await Post.deleteOne({ _id: postId });
+    try {
+        const result = await Post.deleteOne({ _id: postId });
 
-    if (result.deletedCount === 0){
-        return createErrorResponse(404, `Post ${postId} not found`);
+        if (result.deletedCount === 0){
+            return createErrorResponse(404, `Post ${postId} not found`);
+        }
+
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
     }
-
-    return { err: null };
 }
 
 async function deleteAll(){
@@ -133,7 +145,7 @@ async function deleteAll(){
 
         return { err: null };
     }catch (e){
-        return createErrorResponse(e.code || 500, e.msg, e.details);
+        return createErrorResponse(500, e.msg);
     }
 }
 
@@ -157,6 +169,7 @@ function isValidUserAuth(userAuth){
     if (!userAuth){
         return false;
     }
+
     if (typeof userAuth !== 'string'){
         return false;
     }

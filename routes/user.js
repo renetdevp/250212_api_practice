@@ -3,29 +3,35 @@ const { createOne, readOne, readAll, updateOne, deleteOne, deleteAll } = require
 
 router.get('/', async (req, res, next) => {
     try {
-        const [code, msg, users] = await readAll();
+        const { err, users } = await readAll();
+
+        if (err){
+            return next(err);
+        }
 
         res.status(200).json({
             users: users
         });
     } catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
 router.get('/:userId', async (req, res, next) => {
+    const { userId } = req.params;
+
     try {
-        const { userId } = req.params;
+        const { err, user } = await readOne({ userId: userId });
 
-        const [code, msg, user] = await readOne({ userId: userId });
+        if (err){
+            return next(err);
+        }
 
-        res.status(code).json({
+        res.status(200).json({
             user: user
         });
     } catch(e) {
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
@@ -34,6 +40,7 @@ router.post('/', async (req, res, next) => {
 
     try {
         const { err } = await createOne(userId, hash);
+
         if (err){
             return next(err);
         }
@@ -47,31 +54,37 @@ router.post('/', async (req, res, next) => {
 });
 
 router.put('/:userId', async (req, res, next) => {
-    try {
-        const { userId } = req.params;
-        const { user } = req.body;
-    
-        const [code, msg] = await updateOne(userId, user);
+    const { userId } = req.params;
+    const { user } = req.body;
 
-        res.status(code).json({
-            msg
+    try {
+        const { err } = await updateOne(userId, user);
+
+        if (err){
+            return next(err);
+        }
+
+        res.status(201).json({
+            msg: `User ${userId} updated`
         });
     } catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
 router.delete('/', async (req, res, next) => {
     try {
-        const [code, msg] = await deleteAll();
+        const { err } = await deleteAll();
 
-        res.status(code).json({
-            msg: msg,
+        if (err){
+            return next(err);
+        }
+
+        res.status(201).json({
+            msg: 'Users deleted',
         });
     } catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 
@@ -79,14 +92,17 @@ router.delete('/:userId', async (req, res, next) => {
     try {
         const { userId } = req.params;
 
-        const [code, msg] = await deleteOne(userId);
+        const { err } = await deleteOne(userId);
 
-        res.status(code).json({
-            msg: msg,
+        if (err){
+            return next(err);
+        }
+
+        res.status(201).json({
+            msg: `User ${userId} deleted`,
         });
     } catch (e){
-        const [code, msg] = e;
-        next({ code: code, msg: msg });
+        next(e);
     }
 });
 

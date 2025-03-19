@@ -9,23 +9,13 @@ const { User, encryptPassword } = require('../models/user');
  */
 async function createOne(userId, hash){
     if (!isValidUserFormat({ userId, hash })){
-        return {
-            err: {
-                code: 400,
-                msg: 'Invalid User Format',
-            }
-        };
+        return createErrorResponse(400, 'Invalid User Format');
     }
 
     try {
         const count = await User.countDocuments({ userId }).exec();
         if (count > 0){
-            return {
-                err: {
-                    code: 409,
-                    msg: `User ${userId} already exist`
-                }
-            };
+            return createErrorResponse(409, `User ${userId} already exist`);
         }
 
         const { err, salt, encrypted } = await encryptPassword(hash);
@@ -36,17 +26,9 @@ async function createOne(userId, hash){
         const newUser = new User({ userId, hash: encrypted, salt, });
         await newUser.save();
 
-        return {
-            err: null,
-            success: true,
-        }
+        return { err: null };
     }catch (e){
-        return {
-            err: {
-                code: 500,
-                msg: `Error while create User ${userId}`,
-            }
-        };
+        return createErrorResponse(500, e.msg);
     }
 }
 
@@ -55,27 +37,24 @@ async function createOne(userId, hash){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Array} [code: Number, msg: String, user: Object]
+ * @returns {Object} { err: Object | null, user: Object | undefined }
  */
-function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
-    return new Promise((resolve, reject) => {
-        if (typeof filter?.userId !== 'string'){
-            return reject([400, 'Invalid userId', null]);
+async function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
+    if (!isValidUserId(filter?.userId)){
+        return createErrorResponse(400, 'Invalid userId');
+    }
+
+    try {
+        const user = await User.findOne(filter, projection).lean();
+
+        if (isEmptyUser(user)){
+            return createErrorResponse(404, `User ${filter.userId} not found`);
         }
 
-        const findOnePromise = User.findOne(filter, projection).lean().exec();
-
-        findOnePromise.then((user) => {
-            if (isEmptyUser(user)){
-                return reject([404, `User ${filter?.userId} not found`, null]);
-            }
-
-            resolve([200, null, user]);
-        })
-        .catch((err) => {
-            reject([500, err, null]);
-        });
-    });
+        return { err: null, user };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 /**
@@ -83,19 +62,16 @@ function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Array} [code: Number, msg: String, users: Array]
+ * @returns {Object} { err: Object | null, user: Array | undefined}
  */
-function readAll(filter = {}, projection = { userId: 1, _id: 0}){
-    return new Promise((resolve, reject) => {
-        const findPromise = User.find(filter, projection).lean().exec();
+async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
+    try {
+        const users = await User.find(filter, projection).lean();
 
-        findPromise.then((users) => {
-            resolve([200, null, users]);
-        })
-        .catch((err) => {
-            reject([500, 'Failed to read Users', null]);
-        });
-    });
+        return { err: null, users };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 /**
@@ -103,82 +79,92 @@ function readAll(filter = {}, projection = { userId: 1, _id: 0}){
  * 
  * @param {String} userId 
  * @param {Object} user 
- * @returns {Array} [code: Number, msg: String]
+ * @param {String} userAuth
+ * @returns {Object} { err: Object | null }
  */
-function updateOne(userId, user){
-    return new Promise(async (resolve, reject) => {
-        if (typeof userId !== 'string'){
-            return reject([400, 'Invalid userId format']);
+async function updateOne(userId, user, userAuth){
+    if (!isValidUserId(userId)){
+        return createErrorResponse(400, 'Invalid userId format');
+    }
+
+    if (!isValidUserFormat(user)){
+        return createErrorResponse(400, 'Invalid user format');
+    }
+
+    if (!isValidUserAuth(userAuth)){
+        return createErrorResponse(400, 'Invalid User Authentication');
+    }
+
+    try {
+        const foundUser = await User.find({ userId }).lean();
+
+        if (isEmptyUser(foundUser)){
+            return createErrorResponse(404, `User ${userId} not found`);
         }
 
-        if (!isValidUserFormat(user)){
-            return reject([400, 'Invalid user format']);
+        const decodedUserId = await verify(userAuth);
+
+        if (foundUser.userId !== decodedUserId){
+            return createErrorResponse(403, 'Not authorizated');
         }
 
-        const updateOnePromise = User.updateOne({ userId: userId }, user).exec();
+        await User.updateOne({ userId }, user);
 
-        updateOnePromise.then((result) => {
-            if (result.matchedCount === 0){
-                return reject([404, `User ${userId} not found`]);
-            }
-
-            resolve([201, `User ${userId} updated`]);
-        })
-        .catch((err) => {
-            reject([500, err]);
-        });
-    });
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 /**
  * Delete user(userId) with userId
  * 
  * @param {String} userId 
- * @returns {Array} [code: Number, msg: String]
+ * @param {String} userAuth
+ * @returns {Object} { err: Object | null }
  */
-function deleteOne(userId){
-    return new Promise((resolve, reject) => {
-        if (typeof userId !== 'string'){
-            return reject([400, 'Invalid input']);
+async function deleteOne(userId, userAuth){
+    if (!isValidUserId(userId)){
+        return createErrorResponse(400, 'Invalid userId');
+    }
+
+    if (!isValidUserAuth(userAuth)){
+        return createErrorResponse(400, 'Invalid userAuth');
+    }
+
+    try {
+        const decodedUserId = await verify(userAuth);
+
+        if (decodedUserId !== userId){
+            return createErrorResponse(403, 'Not authorizated');
         }
 
-        const existsPromise = User.exists({ userId: userId }).exec();
+        const result = await User.deleteOne({ userId }).exec();
 
-        existsPromise.then((isExist) => {
-            if (!isExist){
-                return reject([404, `User ${userId} not found`]);
-            }
-        })
-        .then(() => {
-            const deletePromise = User.deleteOne({ userId: userId }).exec();
+        if (result.deletedCount === 0){
+            return createErrorResponse(404, `User ${userId} not found`);
+        }
 
-            deletePromise.then(() => {
-                resolve([201, `User ${userId} deleted`]);
-            });
-        })
-        .catch((err) => {
-            reject([500, err]);
-        });
-    });
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 /**
  * Delete All User with filter
  * 
  * @param {Object} filter 
- * @returns {Array} [code: Number, msg: String]
+ * @returns {Object} { err: Object | null }
  */
-function deleteAll(filter = {}){
-    return new Promise((resolve, reject) => {
-        const deletePromise = User.deleteMany(filter).exec();
+async function deleteAll(filter = {}){
+    try {
+        await User.deleteMany(filter).exec();
 
-        deletePromise.then(() => {
-            return resolve([201, 'All Users deleted']);
-        })
-        .catch((err) => {
-            return reject([500, err])
-        });
-    });
+        return { err: null };
+    }catch (e){
+        return createErrorResponse(500, e.msg);
+    }
 }
 
 function isValidUserFormat(user){
@@ -202,6 +188,46 @@ function isEmptyUser(user){
     if (Object.keys(user).length === 0) return true;
 
     return false;
+}
+
+function isValidUserId(userId){
+    if (!userId){
+        return false;
+    }
+
+    if (typeof userId !== 'string'){
+        return false;
+    }
+
+    return true;
+}
+
+function isValidUserAuth(userAuth){
+    if (!userAuth){
+        return false;
+    }
+
+    if (typeof userAuth !== 'string'){
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * 
+ * @param {Number} code 
+ * @param {String} msg 
+ * @param {String|undefined} details default: undefined
+ */
+function createErrorResponse(code, msg, details=undefined){
+    return {
+        err: {
+            code,
+            msg,
+            details,
+        }
+    };
 }
 
 module.exports = {
