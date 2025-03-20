@@ -121,17 +121,29 @@ async function updateOne(postId, post, userAuth){
     }
 }
 
-async function deleteOne(postId){
+async function deleteOne(postId, userAuth){
     if (!isValidObjectId(postId)){
         return createErrorResponse(400, 'Invalid postId');
     }
 
-    try {
-        const result = await Post.deleteOne({ _id: postId });
+    if (!isValidUserAuth(userAuth)){
+        return createErrorResponse(400, 'Invalid User Authentication');
+    }
 
-        if (result.deletedCount === 0){
+    try {
+        const foundPost = await Post.findOne({ _id: postId }).lean();
+
+        if (isEmptyPost(foundPost)){
             return createErrorResponse(404, `Post ${postId} not found`);
         }
+
+        const userId = await verify(userAuth);
+
+        if (foundPost.author !== userId){
+            return createErrorResponse(403, 'Not authorizated');
+        }
+
+        await Post.deleteOne({ _id: postId });
 
         return { err: null };
     }catch (e){

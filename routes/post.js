@@ -92,9 +92,10 @@ router.delete('/', async (req, res, next) => {
 
 router.delete('/:postId', async (req, res, next) => {
     const { postId } = req.params;
+    const userAuth = req.headers.authorization;
     
     try {
-        const { err } = await deleteOne(postId);
+        const { err } = await deleteOne(postId, userAuth);
 
         if (err){
             return next(err);
