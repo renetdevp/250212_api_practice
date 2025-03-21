@@ -1,5 +1,5 @@
 const { Schema, model } = require('mongoose');
-const { pbkdf2 } = require('crypto');
+const { getRamdomBytes, pbkdf2 } = require('crypto');
 
 const userSchema = new Schema({
     userId: {
@@ -28,7 +28,7 @@ const userModel = model('User', userSchema);
  */
 function encryptPassword(password, salt=undefined){
     return new Promise((resolve, reject) => {
-        const localSalt = !!salt?salt:(process.env.userHashSalt || '[tempSalt]');
+        const localSalt = !!salt?salt:getRamdomBytes(16);
         const hashAlgorithm = process.env.hashAlgorithm || 'sha512';
 
         pbkdf2(password, localSalt, 310000, 32, hashAlgorithm, (err, derivedKey) => {
