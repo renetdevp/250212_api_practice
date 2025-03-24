@@ -19,7 +19,10 @@ async function authenticate(userId, password){
             return createErrorResponse(404, `User ${userId} not found`);
         }
 
+        // user.hash를 String 타입으로 사용할 때, models/user.js의 encryptPassword 함수 내 주석 참조
         const { encrypted } = await encryptPassword(password, user.salt);
+        // user.hash를 Buffer 타입으로 사용할 때
+        // const { encrypted } = await encryptPassword(password, user.salt.buffer);
 
         if (!isEqual(encrypted, user.hash)){
             return createErrorResponse(401, 'Failed to Authenticate');
@@ -32,7 +35,7 @@ async function authenticate(userId, password){
             token: token,
         };
     }catch (e){
-        return createErrorResponse(e.code, e.msg, e.details);
+        return createErrorResponse(500, e);
     }
 }
 

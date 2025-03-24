@@ -6,10 +6,7 @@ const helmet = require('helmet');
 const logger = require('morgan');
 const methodOverride = require('method-override');
 
-const authenticationRouter = require('./routes/authentication');
-const userRouter = require('./routes/user');
-const postRouter = require('./routes/post');
-const mplEffRouter = require('./routes/maple_eff');
+const indexRouter = require('./routes/index');
 
 app.use(bodyParser.json());
 app.use(helmet());
@@ -39,10 +36,7 @@ dbConnection.on('error', err => {
     console.error(`DB error at ${date} \n${err}`);
 });
 
-app.use('/authentications', authenticationRouter)
-app.use('/users', userRouter);
-app.use('/posts', postRouter);
-app.use('/mpleff', mplEffRouter);
+app.use('/', indexRouter);
 
 app.get('/status', (req, res) => {
     res.status(200).json({

@@ -42,6 +42,23 @@ describe('Test USER CRUD', () => {
     });
 });
 
+describe('Test Authentication', () => {
+    test('Login to \"asdf\" user', async () => {
+        const res = await request(app).post('/authentications').send({ userId: 'asdf', hash: 'asdf' });
+        expect(res.statusCode).toBe(201);
+    });
+
+    test('Login to \"asdf\" user with wrong password', async () => {
+        const res = await request(app).post('/authentications').send({ userId: 'asdf', hash: 'wrongPassword' });
+        expect(res.statusCode).toBe(401);
+    });
+
+    test('Login to non-exist user', async () => {
+        const res = await request(app).post('/authentications').send({ userId: 'john doe', hash: 'password' });
+        expect(res.statusCode).toBe(404);
+    });
+});
+
 afterAll(() => {
     mongoose.connection.close();
 });
