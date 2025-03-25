@@ -74,17 +74,17 @@ describe('Test POST CRUD', () => {
     });
 
     test('Create new Post', async () => {
-        const res = await request(app).post('/posts').send({ post: { title: 'title1', content: 'content1' }}).set('Authorization', token);
+        const res = await request(app).post('/posts').send({ title: 'title1', content: 'content1' }).set('Authorization', token);
         expect(res.statusCode).toBe(201);
     });
 
     test('Send Wrong Post Format', async () => {
-        const res = await request(app).post('/posts').send({ title: 'title2', content: 'content2' }).set('Authorization', token);
+        const res = await request(app).post('/posts').send({ title: 'title2', body: 'content2' }).set('Authorization', token);
         expect(res.statusCode).toBe(400);
     });
 
     test('Create another Post', async () => {
-        const res = await request(app).post('/posts').send({ post: { title: 'title2', content: 'content2' }}).set('Authorization', token);
+        const res = await request(app).post('/posts').send({ title: 'title2', content: 'content2' }).set('Authorization', token);
         expect(res.statusCode).toBe(201);
     });
 

@@ -36,18 +36,18 @@ router.get('/:postId', async (req, res, next) => {
 });
 
 router.post('/', async (req, res, next) => {
-    const { post } = req.body;
+    const { title, content } = req.body;
     const userAuth = req.headers.authorization;
 
     try {
-        const { err } = await createOne(post, userAuth);
+        const { err } = await createOne({ title, content }, userAuth);
 
         if (err){
             return next(err);
         }
 
         res.status(201).json({
-            msg: `Post ${post.title} created`,
+            msg: `Post ${title} created`,
         });
     }catch (e){
         next(e);
