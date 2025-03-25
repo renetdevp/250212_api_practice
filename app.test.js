@@ -59,6 +59,56 @@ describe('Test Authentication', () => {
     });
 });
 
+describe('Test POST CRUD', () => {
+    let token = '';
+
+    beforeAll(async () => {
+        // get \"asdf\" user's token
+        const res = await request(app).post('/authentications').send({ userId: 'asdf', hash: 'asdf' });
+        token = res.body.token;
+    });
+
+    test('Delete All Posts', async () => {
+        const res = await request(app).delete('/posts');
+        expect(res.statusCode).toBe(201);
+    });
+
+    test('Create new Post', async () => {
+        const res = await request(app).post('/posts').send({ post: { title: 'title1', content: 'content1' }}).set('Authorization', token);
+        expect(res.statusCode).toBe(201);
+    });
+
+    test('Send Wrong Post Format', async () => {
+        const res = await request(app).post('/posts').send({ title: 'title2', content: 'content2' }).set('Authorization', token);
+        expect(res.statusCode).toBe(400);
+    });
+
+    test('Create another Post', async () => {
+        const res = await request(app).post('/posts').send({ post: { title: 'title2', content: 'content2' }}).set('Authorization', token);
+        expect(res.statusCode).toBe(201);
+    });
+
+    test('Read All Posts', async () => {
+        const res = await request(app).get('/posts');
+        expect(res.statusCode).toBe(200);
+        // 받아온 posts에서 _id를 제거하고 title, content, author 만을 test
+        res.body.posts.map(v => {
+            delete v._id;
+        });
+        expect(res.body).toStrictEqual({
+            posts: [{
+                title: 'title1',
+                content: 'content1',
+                author: 'asdf',
+            }, {
+                title: 'title2',
+                content: 'content2',
+                author: 'asdf',
+            }],
+        });
+    });
+});
+
 afterAll(() => {
     mongoose.connection.close();
 });
