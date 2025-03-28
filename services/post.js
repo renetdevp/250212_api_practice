@@ -1,6 +1,5 @@
 const { isValidObjectId } = require('mongoose');
 const Post = require('../models/post');
-const { verify } = require('./jwt');
 
 /**
  * Create post(postId) with post, userAuth

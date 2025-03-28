@@ -6,7 +6,7 @@ const app = require('./app');
 describe('Test USER CRUD', () => {
     test('Delete All Users', async () => {
         const res = await request(app).delete('/users');
-        expect(res.statusCode).toBe(201);
+        expect(res.statusCode).toBe(204);
     });
 
     test('Create new User', async () => {

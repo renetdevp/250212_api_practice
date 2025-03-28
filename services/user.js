@@ -4,32 +4,22 @@ const { randomBytes, pbkdf2 } = require('crypto');
 /**
  * Create user(userId) with userId,hash
  * 
- * @param {String} userId 
- * @param {String} hash 
- * @returns {Object}
+ * @param {String} userId
+ * @param {String} hash
  */
 async function createOne(userId, hash){
     if (!isValidUserFormat({ userId, hash })){
-        return createErrorResponse(400, 'Invalid User Format');
+        throw createErrorResponse(400, 'Invalid User Format');
     }
 
-    try {
-        const alreadyExist = await User.exists({ userId });
-        if (!!alreadyExist){
-            return createErrorResponse(409, `User ${userId} already exist`);
-        }
-
-        const { err, salt, encrypted } = await encryptPassword(hash);
-        if (err){
-            return err;
-        }
-
-        await User.create({ userId, hash: encrypted, salt });
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    const alreadyExist = await User.exists({ userId });
+    if (!!alreadyExist){
+        throw createErrorResponse(409, `User ${userId} already exist`);
     }
+
+    const { salt, encrypted } = await encryptPassword(hash);
+
+    await User.create({ userId, hash: encrypted, salt });
 }
 
 /**
@@ -37,24 +27,20 @@ async function createOne(userId, hash){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Object} { err: Object | null, user: Object | undefined }
+ * @returns {Object} { user: Object | undefined }
  */
 async function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
     if (!isValidUserId(filter?.userId)){
         return createErrorResponse(400, 'Invalid userId');
     }
 
-    try {
-        const user = await User.findOne(filter, projection).lean();
+    const user = await User.findOne(filter, projection).lean();
 
-        if (isEmptyUser(user)){
-            return createErrorResponse(404, `User ${filter.userId} not found`);
-        }
-
-        return { err: null, user };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    if (isEmptyUser(user)){
+        throw createErrorResponse(404, `User ${filter.userId} not found`);
     }
+
+    return { user };
 }
 
 /**
@@ -62,16 +48,12 @@ async function readOne(filter = {}, projection = { userId: 1, _id: 0 }){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Object} { err: Object | null, user: Array | undefined}
+ * @returns {Object} { user: Array | undefined}
  */
 async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
-    try {
-        const users = await User.find(filter, projection).lean();
+    const users = await User.find(filter, projection).lean();
 
-        return { err: null, users };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
-    }
+    return { users };
 }
 
 /**
@@ -80,35 +62,27 @@ async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
  * @param {String} userId
  * @param {Object} modification
  * @param {String} userAuth
- * @returns {Object} { err: Object | null }
+ * @returns
  */
 async function updateOne(userId, modification, decodedUserId){
     if (!isValidUserId(userId)){
-        return createErrorResponse(400, 'Invalid userId format');
+        throw createErrorResponse(400, 'Invalid userId format');
     }
 
     if (userId !== decodedUserId){
-        return createErrorResponse(403, 'Forbidden');
+        throw createErrorResponse(403, 'Forbidden');
     }
 
     const conformedUser = await conformUser(modification);
 
     if (!conformedUser){
-        return createErrorResponse(400, 'Invalid modification format');
+        throw createErrorResponse(400, 'Invalid modification format');
     }
 
-    try {
-        const foundUser = await User.find({ userId }).lean();
+    const result = await User.updateOne({ userId }, conformedUser);
 
-        if (isEmptyUser(foundUser)){
-            return createErrorResponse(404, `User ${userId} not found`);
-        }
-
-        await User.updateOne({ userId }, conformedUser);
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    if (result.modifiedCount === 0){
+        throw createErrorResponse(404, `User ${userId} not found`);
     }
 }
 
@@ -117,27 +91,21 @@ async function updateOne(userId, modification, decodedUserId){
  * 
  * @param {String} userId 
  * @param {String} userAuth
- * @returns {Object} { err: Object | null }
+ * @returns
  */
 async function deleteOne(userId, decodedUserId){
     if (!isValidUserId(userId)){
-        return createErrorResponse(400, 'Invalid userId');
+        throw createErrorResponse(400, 'Invalid userId');
     }
 
-    try {
-        if (decodedUserId !== userId){
-            return createErrorResponse(403, 'Forbidden');
-        }
+    if (decodedUserId !== userId){
+        throw createErrorResponse(403, 'Forbidden');
+    }
 
-        const result = await User.deleteOne({ userId }).exec();
+    const result = await User.deleteOne({ userId }).exec();
 
-        if (result.deletedCount === 0){
-            return createErrorResponse(404, `User ${userId} not found`);
-        }
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    if (result.deletedCount === 0){
+        throw createErrorResponse(404, `User ${userId} not found`);
     }
 }
 
@@ -145,16 +113,10 @@ async function deleteOne(userId, decodedUserId){
  * Delete All User with filter
  * 
  * @param {Object} filter 
- * @returns {Object} { err: Object | null }
+ * @returns
  */
 async function deleteAll(filter = {}){
-    try {
-        await User.deleteMany(filter).exec();
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
-    }
+    await User.deleteMany(filter).exec();
 }
 
 /**
@@ -253,14 +215,10 @@ async function conformUser(modification){
     }
 
     if (hash !== undefined && typeof hash === 'string'){
-        try {
-            const { salt, encrypted } = await encryptPassword(hash);
+        const { salt, encrypted } = await encryptPassword(hash);
 
-            result.salt = salt;
-            result.hash = encrypted;
-        }catch (e){
-            throw e;
-        }
+        result.salt = salt;
+        result.hash = encrypted;
     }
 
     if (Object.keys(result).length === 0){
@@ -277,13 +235,13 @@ async function conformUser(modification){
  * @param {String|undefined} details default: undefined
  */
 function createErrorResponse(code, msg, details=undefined){
-    return {
-        err: {
-            code,
-            msg,
-            details,
-        }
-    };
+    const err = new Error();
+
+    err.code = code;
+    err.msg = msg;
+    err.details = details;
+
+    return err;
 }
 
 module.exports = {

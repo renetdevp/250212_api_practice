@@ -3,11 +3,7 @@ const { createOne, readOne, readAll, updateOne, deleteOne, deleteAll } = require
 module.exports = {
     getAllUsers: async (req, res, next) => {
         try {
-            const { err, users } = await readAll();
-
-            if (err){
-                return next(err);
-            }
+            const { users } = await readAll();
 
             res.status(200).json({
                 users: users
@@ -21,11 +17,7 @@ module.exports = {
         const { userId } = req.params;
 
         try {
-            const { err, user } = await readOne({ userId: userId });
-
-            if (err){
-                return next(err);
-            }
+            const { user } = await readOne({ userId: userId });
 
             res.status(200).json({
                 user: user
@@ -39,11 +31,7 @@ module.exports = {
         const { userId, hash } = req.body;
 
         try {
-            const { err } = await createOne(userId, hash);
-
-            if (err){
-                return next(err);
-            }
+            await createOne(userId, hash);
 
             res.status(201).json({
                 msg: `User ${userId} created`,
@@ -59,11 +47,7 @@ module.exports = {
         const decodedUserId = req.userId;
 
         try {
-            const { err } = await updateOne(userId, modification, decodedUserId);
-
-            if (err){
-                return next(err);
-            }
+            await updateOne(userId, modification, decodedUserId);
 
             res.status(201).json({
                 msg: `User ${userId} updated`
@@ -75,13 +59,9 @@ module.exports = {
 
     deleteAllUsers: async (req, res, next) => {
         try {
-            const { err } = await deleteAll();
+            await deleteAll();
 
-            if (err){
-                return next(err);
-            }
-
-            res.status(201).json({
+            res.status(204).json({
                 msg: 'Users deleted',
             });
         } catch (e){
@@ -94,11 +74,7 @@ module.exports = {
         const decodedUserId = req.userId;
 
         try {
-            const { err } = await deleteOne(userId, decodedUserId);
-
-            if (err){
-                return next(err);
-            }
+            await deleteOne(userId, decodedUserId);
 
             res.status(201).json({
                 msg: `User ${userId} deleted`,
