@@ -1,5 +1,6 @@
 const { timingSafeEqual } = require('crypto');
-const { User, encryptPassword, isValidUserFormat } = require('../models/user');
+const { User } = require('../models/user');
+const { encryptPassword, isValidUserFormat } = require('../services/user');
 const { sign } = require('./jwt');
 
 /**
