@@ -5,11 +5,7 @@ module.exports = {
         const { userId, hash } = req.body;
 
         try {
-            const { err, token } = await authenticate(userId, hash);
-
-            if (err){
-                return next(err);
-            }
+            const { token } = await authenticate(userId, hash);
 
             res.status(201).json({
                 token: token
