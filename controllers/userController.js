@@ -89,10 +89,11 @@ module.exports = {
     },
 
     deleteUser: async (req, res, next) => {
-        try {
-            const { userId } = req.params;
+        const { userId } = req.params;
+        const decodedUserId = req.userId;
 
-            const { err } = await deleteOne(userId);
+        try {
+            const { err } = await deleteOne(userId, decodedUserId);
 
             if (err){
                 return next(err);

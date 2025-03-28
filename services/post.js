@@ -1,6 +1,6 @@
+const { isValidObjectId } = require('mongoose');
 const Post = require('../models/post');
 const { verify } = require('./jwt');
-const { isValidObjectId } = require('mongoose');
 
 /**
  * Create post(postId) with post, userAuth
@@ -9,18 +9,12 @@ const { isValidObjectId } = require('mongoose');
  * @param {String} userAuth
  * @returns {Object|null}
  */
-async function createOne(post, userAuth){
+async function createOne(post, userId){
     if (!isValidPostFormat(post)){
         return createErrorResponse(400, 'Invalid Post Format');
     }
 
-    if (!isValidUserAuth(userAuth)){
-        return createErrorResponse(400, 'Invalid User Authentication');
-    }
-
     try {
-        const userId = await verify(userAuth);
-
         await Post.create({
             ...post,
             author: userId,
@@ -87,7 +81,7 @@ async function readAll(filter = {}, projection = { __v: 0 }){
  * @param {String} userAuth
  * @returns {Object|null} { err: object|null }
  */
-async function updateOne(postId, post, userAuth){
+async function updateOne(postId, post, userId){
     if (!isValidObjectId(postId)){
         return createErrorResponse(400, 'Invalid postId');
     }
@@ -96,18 +90,12 @@ async function updateOne(postId, post, userAuth){
         return createErrorResponse(400, 'Invalid post format');
     }
 
-    if (!isValidUserAuth(userAuth)){
-        return createErrorResponse(400, 'Invalid User Authentication');
-    }
-
     try {
         const foundPost = await Post.findOne({ _id: postId }).lean();
 
         if (isEmptyPost(foundPost)){
             return createErrorResponse(404, `Post ${postId} not found`);
         }
-
-        const userId = await verify(userAuth);
 
         if (foundPost.author !== userId){
             return createErrorResponse(403, 'Not authorizated');
@@ -121,13 +109,9 @@ async function updateOne(postId, post, userAuth){
     }
 }
 
-async function deleteOne(postId, userAuth){
+async function deleteOne(postId, userId){
     if (!isValidObjectId(postId)){
         return createErrorResponse(400, 'Invalid postId');
-    }
-
-    if (!isValidUserAuth(userAuth)){
-        return createErrorResponse(400, 'Invalid User Authentication');
     }
 
     try {
@@ -136,8 +120,6 @@ async function deleteOne(postId, userAuth){
         if (isEmptyPost(foundPost)){
             return createErrorResponse(404, `Post ${postId} not found`);
         }
-
-        const userId = await verify(userAuth);
 
         if (foundPost.author !== userId){
             return createErrorResponse(403, 'Not authorizated');

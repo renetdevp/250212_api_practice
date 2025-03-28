@@ -123,18 +123,12 @@ async function updateOne(userId, user, userAuth){
  * @param {String} userAuth
  * @returns {Object} { err: Object | null }
  */
-async function deleteOne(userId, userAuth){
+async function deleteOne(userId, decodedUserId){
     if (!isValidUserId(userId)){
         return createErrorResponse(400, 'Invalid userId');
     }
 
-    if (!isValidUserAuth(userAuth)){
-        return createErrorResponse(400, 'Invalid userAuth');
-    }
-
     try {
-        const decodedUserId = await verify(userAuth);
-
         if (decodedUserId !== userId){
             return createErrorResponse(403, 'Not authorizated');
         }

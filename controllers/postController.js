@@ -37,10 +37,10 @@ module.exports = {
 
     createPost: async (req, res, next) => {
         const { title, content } = req.body;
-        const userAuth = req.headers.authorization;
+        const { userId } = req;
 
         try {
-            const { err } = await createOne({ title, content }, userAuth);
+            const { err } = await createOne({ title, content }, userId);
 
             if (err){
                 return next(err);
@@ -57,10 +57,10 @@ module.exports = {
     updatePost: async (req, res, next) => {
         const { postId } = req.params;
         const { post } = req.body;
-        const userAuth = req.headers.authorization;
+        const { userId } = req;
 
         try {
-            const { err } = await updateOne(postId, post, userAuth);
+            const { err } = await updateOne(postId, post, userId);
 
             if (err){
                 return next(err);
@@ -92,10 +92,10 @@ module.exports = {
 
     deletePost: async (req, res, next) => {
         const { postId } = req.params;
-        const userAuth = req.headers.authorization;
+        const { userId } = req;
 
         try {
-            const { err } = await deleteOne(postId, userAuth);
+            const { err } = await deleteOne(postId, userId);
 
             if (err){
                 return next(err);
