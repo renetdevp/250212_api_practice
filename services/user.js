@@ -77,22 +77,24 @@ async function readAll(filter = {}, projection = { userId: 1, _id: 0 }){
 /**
  * Update user(userId)
  * 
- * @param {String} userId 
- * @param {Object} user 
+ * @param {String} userId
+ * @param {Object} modification
  * @param {String} userAuth
  * @returns {Object} { err: Object | null }
  */
-async function updateOne(userId, user, userAuth){
+async function updateOne(userId, modification, decodedUserId){
     if (!isValidUserId(userId)){
         return createErrorResponse(400, 'Invalid userId format');
     }
 
-    if (!isValidUserFormat(user)){
-        return createErrorResponse(400, 'Invalid user format');
+    if (userId !== decodedUserId){
+        return createErrorResponse(403, 'Forbidden');
     }
 
-    if (!isValidUserAuth(userAuth)){
-        return createErrorResponse(400, 'Invalid User Authentication');
+    const conformedUser = await conformUser(modification);
+
+    if (!conformedUser){
+        return createErrorResponse(400, 'Invalid modification format');
     }
 
     try {
@@ -102,13 +104,7 @@ async function updateOne(userId, user, userAuth){
             return createErrorResponse(404, `User ${userId} not found`);
         }
 
-        const decodedUserId = await verify(userAuth);
-
-        if (foundUser.userId !== decodedUserId){
-            return createErrorResponse(403, 'Not authorizated');
-        }
-
-        await User.updateOne({ userId }, user);
+        await User.updateOne({ userId }, conformedUser);
 
         return { err: null };
     }catch (e){
@@ -130,7 +126,7 @@ async function deleteOne(userId, decodedUserId){
 
     try {
         if (decodedUserId !== userId){
-            return createErrorResponse(403, 'Not authorizated');
+            return createErrorResponse(403, 'Forbidden');
         }
 
         const result = await User.deleteOne({ userId }).exec();
@@ -238,16 +234,40 @@ function isValidUserId(userId){
     return true;
 }
 
-function isValidUserAuth(userAuth){
-    if (!userAuth){
+/**
+ * 
+ * @param {Object} modification
+ * @returns {false|Object}
+ */
+async function conformUser(modification){
+    let result = {};
+
+    if (!modification){
         return false;
     }
 
-    if (typeof userAuth !== 'string'){
+    const { userId, hash } = modification;
+
+    if (userId !== undefined){
+        result.userId = userId;
+    }
+
+    if (hash !== undefined && typeof hash === 'string'){
+        try {
+            const { salt, encrypted } = await encryptPassword(hash);
+
+            result.salt = salt;
+            result.hash = encrypted;
+        }catch (e){
+            throw e;
+        }
+    }
+
+    if (Object.keys(result).length === 0){
         return false;
     }
 
-    return true;
+    return result;
 }
 
 /**

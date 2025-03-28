@@ -40,6 +40,41 @@ describe('Test USER CRUD', () => {
             }],
         });
     });
+
+    describe('USER services which userAuth needed', () => {
+        let token = '';
+
+        beforeAll(async () => {
+            // Login to fdsa user
+            const res = await request(app).post('/authentications').send({ userId: 'fdsa', hash: 'fdsa' });
+            token = res.body.token;
+        });
+
+        test('Update other user', async () => {
+            const res = await request(app).put('/users/asdf').send({ userId: 'notAsdf' }).set('Authorization', token);
+            expect(res.statusCode).toBe(403);
+        });
+
+        test('Delete other user', async () => {
+            const res = await request(app).delete('/users/asdf').set('Authorization', token);
+            expect(res.statusCode).toBe(403);
+        });
+
+        test('Update self', async () => {
+            const res = await request(app).put('/users/fdsa').send({ hash: 'notFdsa' }).set('Authorization', token);
+            expect(res.statusCode).toBe(201);
+        });
+
+        test('Login after update', async () => {
+            const res = await request(app).post('/authentications').send({ userId: 'fdsa', hash: 'notFdsa' });
+            expect(res.statusCode).toBe(201);
+        });
+
+        test('Delete self', async () => {
+            const res = await request(app).delete('/users/fdsa').set('Authorization', token);
+            expect(res.statusCode).toBe(201);
+        });
+    });
 });
 
 describe('Test Authentication', () => {

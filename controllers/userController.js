@@ -55,10 +55,11 @@ module.exports = {
 
     updateUser: async (req, res, next) => {
         const { userId } = req.params;
-        const { user } = req.body;
+        const modification = req.body;
+        const decodedUserId = req.userId;
 
         try {
-            const { err } = await updateOne(userId, user);
+            const { err } = await updateOne(userId, modification, decodedUserId);
 
             if (err){
                 return next(err);

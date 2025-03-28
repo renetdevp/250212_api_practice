@@ -159,18 +159,6 @@ function isValidPostFormat(post){
     return true;
 }
 
-function isValidUserAuth(userAuth){
-    if (!userAuth){
-        return false;
-    }
-
-    if (typeof userAuth !== 'string'){
-        return false;
-    }
-
-    return true;
-}
-
 function isEmptyPost(post){
     if (!post) return true;
     if (Object.keys(post).length === 0) return true;
