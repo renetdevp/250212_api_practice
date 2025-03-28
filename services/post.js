@@ -6,23 +6,17 @@ const Post = require('../models/post');
  * 
  * @param {Object} post 
  * @param {String} userAuth
- * @returns {Object|null}
+ * @returns
  */
 async function createOne(post, userId){
     if (!isValidPostFormat(post)){
-        return createErrorResponse(400, 'Invalid Post Format');
+        throw createErrorResponse(400, 'Invalid Post Format');
     }
 
-    try {
-        await Post.create({
-            ...post,
-            author: userId,
-        });
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
-    }
+    await Post.create({
+        ...post,
+        author: userId,
+    });
 }
 
 /**
@@ -30,11 +24,11 @@ async function createOne(post, userId){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Object} { err: object|null, post: object|null }
+ * @returns {Object} { post: object|null }
  */
 async function readOne(filter = {}, projection = { __v: 0 }){
     if (!isValidObjectId(filter?._id)){
-        return createErrorResponse(400, 'Invalid postId');
+        throw createErrorResponse(400, 'Invalid postId');
     }
 
     // https://mongoosejs.com/docs/api/model.html#Model.findOne()
@@ -43,17 +37,13 @@ async function readOne(filter = {}, projection = { __v: 0 }){
     // 이러한 .lean()은 쿼리의 실행 정보를 가공 없이 바로 response로 보낼 때, 즉 HTTP GET 요청에서 사용하는게 적절함
     // .lean()은 절대로 POST, PUT 메소드에서 이용해선 안됨
 
-    try {
-        const post = await Post.findOne(filter, projection).lean();
+    const post = await Post.findOne(filter, projection).lean();
 
-        if (isEmptyPost(post)){
-            return createErrorResponse(404, `Post${filter._id} not found`);
-        }
-
-        return { err: null, post };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    if (isEmptyPost(post)){
+        throw createErrorResponse(404, `Post${filter._id} not found`);
     }
+
+    return { post };
 }
 
 /**
@@ -61,16 +51,12 @@ async function readOne(filter = {}, projection = { __v: 0 }){
  * 
  * @param {Object} filter 
  * @param {Object} projection 
- * @returns {Object} { err: object|null, posts: object|null }
+ * @returns {Object} { posts: object|null }
  */
 async function readAll(filter = {}, projection = { __v: 0 }){
-    try {
-        const posts = await Post.find(filter, projection).lean();
+    const posts = await Post.find(filter, projection).lean();
 
-        return { err: null, posts };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
-    }
+    return { posts };
 }
 
 /**
@@ -82,64 +68,46 @@ async function readAll(filter = {}, projection = { __v: 0 }){
  */
 async function updateOne(postId, post, userId){
     if (!isValidObjectId(postId)){
-        return createErrorResponse(400, 'Invalid postId');
+        throw createErrorResponse(400, 'Invalid postId');
     }
 
     if (!isValidPostFormat(post)){
-        return createErrorResponse(400, 'Invalid post format');
+        throw createErrorResponse(400, 'Invalid post format');
     }
 
-    try {
-        const foundPost = await Post.findOne({ _id: postId }).lean();
+    const foundPost = await Post.findOne({ _id: postId }).lean();
 
-        if (isEmptyPost(foundPost)){
-            return createErrorResponse(404, `Post ${postId} not found`);
-        }
-
-        if (foundPost.author !== userId){
-            return createErrorResponse(403, 'Not authorizated');
-        }
-
-        await Post.updateOne({ _id: postId }, post);
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    if (isEmptyPost(foundPost)){
+        throw createErrorResponse(404, `Post ${postId} not found`);
     }
+
+    if (foundPost.author !== userId){
+        throw createErrorResponse(403, 'Not authorizated');
+    }
+
+    await Post.updateOne({ _id: postId }, post);
 }
 
 async function deleteOne(postId, userId){
     if (!isValidObjectId(postId)){
-        return createErrorResponse(400, 'Invalid postId');
+        throw createErrorResponse(400, 'Invalid postId');
     }
 
-    try {
-        const foundPost = await Post.findOne({ _id: postId }).lean();
+    const foundPost = await Post.findOne({ _id: postId }).lean();
 
-        if (isEmptyPost(foundPost)){
-            return createErrorResponse(404, `Post ${postId} not found`);
-        }
-
-        if (foundPost.author !== userId){
-            return createErrorResponse(403, 'Not authorizated');
-        }
-
-        await Post.deleteOne({ _id: postId });
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
+    if (isEmptyPost(foundPost)){
+        throw createErrorResponse(404, `Post ${postId} not found`);
     }
+
+    if (foundPost.author !== userId){
+        throw createErrorResponse(403, 'Not authorizated');
+    }
+
+    await Post.deleteOne({ _id: postId });
 }
 
 async function deleteAll(){
-    try {
-        await Post.deleteMany({});
-
-        return { err: null };
-    }catch (e){
-        return createErrorResponse(500, e.msg);
-    }
+    await Post.deleteMany({});
 }
 
 function isValidPostFormat(post){
@@ -166,13 +134,13 @@ function isEmptyPost(post){
 }
 
 function createErrorResponse(code, msg, details=undefined){
-    return {
-        err: {
-            code,
-            msg,
-            details,
-        },
-    };
+    const err = new Error();
+
+    err.code = code;
+    err.msg = msg;
+    err.details = details;
+
+    return err;
 }
 
 module.exports = {

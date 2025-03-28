@@ -3,11 +3,7 @@ const { createOne, readOne, readAll, updateOne, deleteOne, deleteAll } = require
 module.exports = {
     getAllPosts: async (req, res, next) => {
         try {
-            const { err, posts } = await readAll();
-
-            if (err){
-                return next(err);
-            }
+            const { posts } = await readAll();
 
             res.status(200).json({
                 posts,
@@ -21,11 +17,7 @@ module.exports = {
         const { postId } = req.params;
 
         try {
-            const { err, post } = await readOne({ _id: postId });
-
-            if (err){
-                return next(err);
-            }
+            const { post } = await readOne({ _id: postId });
 
             res.status(200).json({
                 post: post,
@@ -40,11 +32,7 @@ module.exports = {
         const { userId } = req;
 
         try {
-            const { err } = await createOne({ title, content }, userId);
-
-            if (err){
-                return next(err);
-            }
+            await createOne({ title, content }, userId);
 
             res.status(201).json({
                 msg: `Post ${title} created`,
@@ -60,11 +48,7 @@ module.exports = {
         const { userId } = req;
 
         try {
-            const { err } = await updateOne(postId, post, userId);
-
-            if (err){
-                return next(err);
-            }
+            await updateOne(postId, post, userId);
 
             res.status(201).json({
                 msg: `Post ${postId} updated`,
@@ -76,11 +60,7 @@ module.exports = {
 
     deleteAllPosts: async (req, res, next) => {
         try {
-            const { err } = await deleteAll();
-
-            if (err){
-                return next(err);
-            }
+            await deleteAll();
 
             res.status(201).json({
                 msg: `Posts deleted`
@@ -95,11 +75,7 @@ module.exports = {
         const { userId } = req;
 
         try {
-            const { err } = await deleteOne(postId, userId);
-
-            if (err){
-                return next(err);
-            }
+            await deleteOne(postId, userId);
 
             res.status(201).json({
                 msg: `Post ${postId} deleted`
