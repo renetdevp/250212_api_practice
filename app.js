@@ -5,6 +5,7 @@ const compression = require('compression');
 const helmet = require('helmet');
 const logger = require('morgan');
 const methodOverride = require('method-override');
+const { rateLimit } = require('express-rate-limit');
 
 const indexRouter = require('./routes/index');
 
@@ -13,6 +14,12 @@ app.use(helmet());
 app.use(methodOverride('X-HTTP-Method-Override'));
 app.use(logger('common'));
 app.use(compression());
+app.use(rateLimit({
+	windowMs: 1000,
+	limit: 10,
+	standardHeaders: 'draft-8',
+	legacyHeaders: false,
+}));
 
 const mongoose = require('mongoose');
 

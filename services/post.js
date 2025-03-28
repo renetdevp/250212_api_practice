@@ -64,7 +64,7 @@ async function readAll(filter = {}, projection = { __v: 0 }){
  * @param {String} postId 
  * @param {Object} post 
  * @param {String} userAuth
- * @returns {Object|null} { err: object|null }
+ * @returns
  */
 async function updateOne(postId, post, userId){
     if (!isValidObjectId(postId)){
@@ -75,7 +75,7 @@ async function updateOne(postId, post, userId){
         throw createErrorResponse(400, 'Invalid post format');
     }
 
-    const foundPost = await Post.findOne({ _id: postId }).lean();
+    const foundPost = await Post.findOne({ _id: postId }, { author: 1 }).lean();
 
     if (isEmptyPost(foundPost)){
         throw createErrorResponse(404, `Post ${postId} not found`);
@@ -93,7 +93,7 @@ async function deleteOne(postId, userId){
         throw createErrorResponse(400, 'Invalid postId');
     }
 
-    const foundPost = await Post.findOne({ _id: postId }).lean();
+    const foundPost = await Post.findOne({ _id: postId }, { author: 1 }).lean();
 
     if (isEmptyPost(foundPost)){
         throw createErrorResponse(404, `Post ${postId} not found`);
